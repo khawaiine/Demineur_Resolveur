@@ -15,6 +15,7 @@ image_5_path ="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQAgMAAABinRf
 image_6_path= 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQAgMAAABinRfyAAAACVBMVEW9vb0Ae3t7e3tXnVpnAAAAKklEQVQI12NYBQQMDQxAACFCQxkYGsFEAAOMgIo5ALmsEALMBSmGaEMQAOO9EHd34ZsRAAAAAElFTkSuQmCC'
 image_flag_path = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAAD1BMVEW9vb3///97e3sAAAD/AABQHuKJAAAAOklEQVQI12MQhAABGIOJQZABDJRADBYHCIPFBcpwcUGIIKsB6zJAZxgbQxjGQIDEQFghoAQBDExQBgCHngoRLPdU8QAAAABJRU5ErkJggg=="
 image_interrogation_path= 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQAgMAAABinRfyAAAADFBMVEW9vb3///97e3sAAACeVBdNAAAAMklEQVQI12MIDQ0NARFBDAEMDFwMAfwfgISNDYxgABMgMeYDEAKkDoPrtWrVKgYtIAEAf3YRdAzsd6QAAAAASUVORK5CYII='
+image_smiley_path = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABoAAAAaBAMAAABbZFH9AAAAD1BMVEW9vb17e3v//wD///8AAABXk1meAAAAaElEQVQY043PwQnAIAyF4QgOUHGDRwYQuoCE7D9Tq41NoB76n/xO5lEJHVRPL0W1QrXRKm2VVV1ZAH0luOumjBGbBLO+pGAxZTxi0+yXeLxNJBBA/AdWhclv+d7pG3zfdnsqHh0lKkVdkaQgtF9LrKkAAAAASUVORK5CYII="
 
 #ouvrir la page chrome 
 driver = webdriver.Chrome()
@@ -28,7 +29,7 @@ def start(niveau):
     clicked_tiles = set()
     clics=niveau-1 
     tile_difficulte = driver.find_element(By.ID,"difficulty")
-    time.sleep(1)
+    time.sleep(3)
     for i in range (clics):
         actions = ActionChains(driver)
         actions.move_to_element(tile_difficulte)
@@ -48,7 +49,7 @@ def start(niveau):
     #Calculer le nombre de tuiles en longueur et en hauteur 
     L=int(l_board/l_tile) #Nombre de tuiles dans la longueur 
     H=int(h_board/h_tile) #Nombre de tuiles dans la largeur
-    print (L,H)
+
     
     #Générer le premeir clic au centre    
     time.sleep(0.5)
@@ -61,26 +62,34 @@ def start(niveau):
     actions.move_to_element(element).click().perform()
     
     #Initialiser le tableau
-    tab = [[i for i in range(L)] for j in range (H)]
-    t=datetime.strptime('18:00', "%M:%S").time()
+    tab = [["unreaveled" for i in range(L)] for j in range (H)]
+    t=datetime.strptime('18:00', "%M:%S").time() #Temps initial fixé à 18 minutes
     
     #Boucle principale
     while True:
-        while int(nombreDeCases) > 0 or int(nombreDeMines) > 0:  # vérification du cas simple où le nombre de mines voisines est égal aux cases 'unrevealed' + cases flag
+        face = driver.find_element(By.ID,'face')
+        face=face.get_attribute('src')
+        while (int(nombreDeCases) > 0 or int(nombreDeMines) > 0) and face == image_smiley_path : #Condition pour continuer à jouer 
             nombreDeCases,nombreDeMines = majnombres()
             tab=M1(tab,L,H)
-            temps=driver.find_element(By.ID,'time')
-            temps=temps.text
-            temps = datetime.strptime(temps.strip(), "%M:%S").time()
-            if temps < t:
-                t=temps
-                driver.get_screenshot_as_file('Niveau_1.png')
+            face = driver.find_element(By.ID,'face')
+            face=face.get_attribute('src')
+        nombreDeCases,nombreDeMines = majnombres()
+        temps=driver.find_element(By.ID,'time')
+        temps=temps.text
+        temps = datetime.strptime(temps.strip(), "%M:%S").time()
+        if temps < t and (nombreDeCases == 0 or nombreDeMines == 0):
+            print("Yeah buddy !")
+            t=temps
+            driver.get_screenshot_as_file('Niveau_' + str(niveau) +".png")
         face=driver.find_element(By.ID,'face')
         face.click()
         time.sleep(0.5)
         board=driver.find_element(By.ID,'board')
         board.click()
         nombreDeCases , nombreDeMines = majnombres()
+        clicked_tiles = set()
+        tab = [["unreaveled" for i in range(L)] for j in range (H)]
 
 #mettre à jour le tableau         
 def majtab(L,H,tab):
@@ -121,7 +130,7 @@ def majtab(L,H,tab):
                     tab[i][j] = 'interrogation'
     return(tab)
 
-#mettre à jour les valeurs d'arrêt du jeu
+#Mettre à jour les nombres de cases et de mines
 def majnombres():
     global driver
     element1 = driver.find_element(By.ID, "tleft")
@@ -130,6 +139,7 @@ def majnombres():
     nombreDeMines = element2.text# Rafraîchissez la valeur
     return (nombreDeCases,nombreDeMines)
 
+#Parcourir le tableau pour le résoudre
 def M1(tab, L, H):
     change = False
     global clicked_tiles
@@ -139,6 +149,7 @@ def M1(tab, L, H):
             x = 0
             y = 0
             X = []
+            p = L*i + j
             if isinstance(tab[i][j], int) and tab[i][j]>0: 
                 if i-1>=0 and j-1 >=0 and tab[i-1][j-1]=='unrevealed':
                     x+=1
